@@ -1,0 +1,25 @@
+{
+  "name": "mindquest",
+  "version": "1.0.0",
+  "description": "Your Personalized Knowledge Journey - AI-powered quiz and assessment platform",
+  "main": "server/server.js",
+  "scripts": {
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd client && npm run build",
+    "start": "cd server && node server.js"
+  },
+  "keywords": [
+    "quiz",
+    "ai",
+    "gemini",
+    "assessment",
+    "learning"
+  ],
+  "author": "MindQuest Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.1"
+  }
+}

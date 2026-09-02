@@ -12,7 +12,7 @@ const genAI = GEMINI_API_KEY && GEMINI_API_KEY !== 'demo-gemini-key'
   ? new GoogleGenerativeAI(GEMINI_API_KEY)
   : null;
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 const failWithoutFallback = (message) => {
   const error = new Error(message);
@@ -130,7 +130,7 @@ Return ONLY a valid JSON object in this exact format. No markdown. No commentary
 
     return { ...quizData, questions: normalizedQuestions };
   } catch (error) {
-    console.error('Error generating quiz:', error.message);
+    console.error('Error generating quiz:', error.message, error.status ? `(status ${error.status})` : '');
     if (attempt < maxAttempts) {
       try {
         return generateQuiz(topic, language, numberOfQuestions, difficulty, mode, attempt + 1);

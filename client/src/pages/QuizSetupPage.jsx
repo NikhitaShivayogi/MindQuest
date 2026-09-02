@@ -11,6 +11,7 @@ import {
   Brain,
   AlertCircle,
   Clock,
+  Languages,
 } from 'lucide-react';
 import api from '../services/api';
 import { AIGenerationLoader } from '../components/SharedUI';
@@ -45,6 +46,21 @@ const FEEDBACK_MODES = [
   { mode: 'After Completion', desc: 'Reveal feedback only when the full quiz is finished.' },
 ];
 
+const LANGUAGES = [
+  { name: 'English', native: 'English', icon: 'EN' },
+  { name: 'Kannada', native: 'ಕನ್ನಡ', icon: 'ಕ' },
+  { name: 'Hindi', native: 'हिन्दी', icon: 'हि' },
+  { name: 'Telugu', native: 'తెలుగు', icon: 'తె' },
+  { name: 'Tamil', native: 'தமிழ்', icon: 'த' },
+  { name: 'Malayalam', native: 'മലയാളം', icon: 'മ' },
+  { name: 'Marathi', native: 'मराठी', icon: 'म' },
+  { name: 'Bengali', native: 'বাংলা', icon: 'বাং' },
+  { name: 'Gujarati', native: 'ગુજરાતી', icon: 'ગુ' },
+  { name: 'Punjabi', native: 'ਪੰਜਾਬੀ', icon: 'ਪੰ' },
+  { name: 'Spanish', native: 'Español', icon: 'ES' },
+  { name: 'French', native: 'Français', icon: 'FR' },
+];
+
 const SUGGESTED_TOPICS = [
   { topic: 'JavaScript & React Hooks', emoji: '⚛️' },
   { topic: 'World War II History', emoji: '🌍' },
@@ -54,7 +70,7 @@ const SUGGESTED_TOPICS = [
   { topic: 'Python Data Structures', emoji: '🐍' },
 ];
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 const QuizSetupPage = () => {
   const navigate = useNavigate();
@@ -62,6 +78,7 @@ const QuizSetupPage = () => {
   const [topic, setTopic] = useState('');
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState('Medium');
+  const [language, setLanguage] = useState('English');
   const [mode] = useState('Text');
   const [feedbackMode, setFeedbackMode] = useState('Instant');
   const [error, setError] = useState('');
@@ -72,6 +89,7 @@ const QuizSetupPage = () => {
     { title: 'What would you like to master?', sub: 'Type any subject or pick one of the popular topics below.' },
     { title: 'How many questions?', sub: 'Choose your quiz length from a quick knowledge check to a deep dive.' },
     { title: 'Select difficulty level', sub: 'Calibrate question depth to match your skill.' },
+    { title: 'Choose quiz language', sub: 'Questions, options, explanations, and feedback will use this language.' },
     { title: 'Choose feedback timing', sub: 'See results immediately or wait until the entire quiz is complete.' },
   ][step];
 
@@ -105,7 +123,7 @@ const QuizSetupPage = () => {
         topic: topic.trim(),
         numberOfQuestions: safeQuestionCount,
         difficulty,
-        language: 'English',
+        language,
         mode,
         feedbackMode,
       });
@@ -114,7 +132,7 @@ const QuizSetupPage = () => {
       navigate(`/quiz/${assessment.id}`, {
         state: {
           assessment,
-          startedAt: Date.now(),
+          quizStarted: false,
         },
         replace: true,
       });
@@ -189,6 +207,9 @@ const QuizSetupPage = () => {
                       <StepDifficulty value={difficulty} setValue={setDifficulty} />
                     )}
                     {step === 4 && (
+                      <StepLanguage value={language} setValue={setLanguage} />
+                    )}
+                    {step === 5 && (
                       <StepFeedbackMode value={feedbackMode} setValue={setFeedbackMode} />
                     )}
                   </motion.div>
@@ -247,6 +268,9 @@ const QuizSetupPage = () => {
                     <Gauge size={11} className="text-[var(--primary)]" /> {difficulty}
                   </span>
                   <span className="badge-pill bg-[var(--surface)] border border-[var(--line)]">
+                    <Languages size={11} className="text-[var(--primary)]" /> {language}
+                  </span>
+                  <span className="badge-pill bg-[var(--surface)] border border-[var(--line)]">
                     {feedbackMode}
                   </span>
                 </div>
@@ -258,7 +282,7 @@ const QuizSetupPage = () => {
         <AIGenerationLoader
           open={loading}
           topic={topic}
-          language="Default"
+          language={language}
           stages={[
             { stage: 'Analyzing topic & concepts', substage: `Topic: ${topic || 'Knowledge Quest'}` },
             { stage: 'Configuring quiz model', substage: 'Preparing a focused learning flow' },
@@ -409,6 +433,42 @@ const StepDifficulty = ({ value, setValue }) => (
         </button>
       );
     })}
+  </div>
+);
+
+const StepLanguage = ({ value, setValue }) => (
+  <div className="flex flex-col gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {LANGUAGES.map((option) => {
+        const selected = value === option.name;
+        return (
+          <button
+            key={option.name}
+            type="button"
+            onClick={() => setValue(option.name)}
+            className={`option-card ${selected ? 'selected' : ''}`}
+          >
+            <div className={`w-10 h-10 rounded-xl grid place-items-center flex-shrink-0 font-bold text-sm ${selected ? 'bg-[var(--primary)] text-white' : 'bg-[var(--surface)] text-[var(--primary)]'}`}>
+              {option.icon}
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-bold text-sm text-[var(--text)]">{option.name}</div>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">{option.native}</p>
+            </div>
+            {selected && <div className="option-check">✓</div>}
+          </button>
+        );
+      })}
+    </div>
+    <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+      Or type another language
+      <input
+        value={LANGUAGES.some((option) => option.name === value) ? '' : value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="For example: German, Japanese, Arabic"
+        className="input-field mt-2"
+      />
+    </label>
   </div>
 );
 

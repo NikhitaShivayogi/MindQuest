@@ -17,6 +17,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { quizAPI } from '../services/api';
 import { Spinner, EmptyState } from '../components/SharedUI';
 import { ScoreRing, PageTransition, FadeIn, CountUp } from '../components/Animated';
+import { useLanguage } from '../context/LanguageContext';
 
 const ResultsPage = () => {
   const { assessmentId } = useParams();
@@ -31,7 +32,8 @@ const ResultsPage = () => {
         const response = await quizAPI.getAssessment(assessmentId);
         const assessment = response.data.assessment;
         const correct = assessment.answers.filter((a) => a.isCorrect).length;
-        const incorrect = assessment.answers.filter((a) => !a.isCorrect).length;
+        const skipped = assessment.answers.filter((a) => a.isSkipped || !String(a.userAnswer || '').trim()).length;
+        const incorrect = assessment.answers.filter((a) => !a.isCorrect && !a.isSkipped && String(a.userAnswer || '').trim()).length;
         const percentage = assessment.percentage || Math.round((correct / assessment.numberOfQuestions) * 100);
 
         setResult({
@@ -39,6 +41,8 @@ const ResultsPage = () => {
           percentage,
           correct,
           incorrect,
+          skipped,
+          points: correct,
           total: assessment.numberOfQuestions,
           timeTaken: assessment.timeTaken || 0,
           answers: assessment.answers,
@@ -185,6 +189,15 @@ const ResultsPage = () => {
 
                   <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--line)]">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      <Sparkles size={15} className="text-[var(--warning)]" /> Points
+                    </div>
+                    <div className="text-2xl font-extrabold text-[var(--text)] mt-1">
+                      {result.points} <span className="text-xs text-[var(--text-muted)] font-normal">/ {result.total}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--line)]">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                       <XCircle size={15} className="text-[var(--danger)]" /> Missed
                     </div>
                     <div className="text-2xl font-extrabold text-[var(--text)] mt-1">
@@ -292,6 +305,8 @@ const ResultsPage = () => {
                     className={`p-4 rounded-xl border text-xs md:text-sm ${
                       answer.isCorrect
                         ? 'bg-[var(--success-soft)] border-[color-mix(in_srgb,var(--success)_25%,transparent)]'
+                        : answer.isSkipped || !String(answer.userAnswer || '').trim()
+                          ? 'bg-[var(--surface)] border-[var(--line)]'
                         : 'bg-[var(--danger-soft)] border-[color-mix(in_srgb,var(--danger)_25%,transparent)]'
                     }`}
                   >
@@ -299,6 +314,8 @@ const ResultsPage = () => {
                       <div className="flex items-center gap-2 font-bold">
                         {answer.isCorrect ? (
                           <CheckCircle2 size={16} className="text-[var(--success)]" />
+                        ) : answer.isSkipped || !String(answer.userAnswer || '').trim() ? (
+                          <Clock size={16} className="text-[var(--text-muted)]" />
                         ) : (
                           <XCircle size={16} className="text-[var(--danger)]" />
                         )}
@@ -306,10 +323,18 @@ const ResultsPage = () => {
                       </div>
                       <span
                         className={`badge-pill ${
-                          answer.isCorrect ? 'badge-success' : 'badge-danger'
+                          answer.isCorrect
+                            ? 'badge-success'
+                            : answer.isSkipped || !String(answer.userAnswer || '').trim()
+                              ? 'bg-[var(--surface)] border border-[var(--line)] text-[var(--text-muted)]'
+                              : 'badge-danger'
                         }`}
                       >
-                        {answer.isCorrect ? 'Correct' : 'Missed'}
+                        {answer.isCorrect
+                          ? 'Correct'
+                          : answer.isSkipped || !String(answer.userAnswer || '').trim()
+                            ? 'Unanswered'
+                            : 'Missed'}
                       </span>
                     </div>
 

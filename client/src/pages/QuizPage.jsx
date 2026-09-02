@@ -36,6 +36,7 @@ const QuizPage = () => {
   const [assessment, setAssessment] = useState(() => location.state?.assessment || null);
   const [loadingAssessment, setLoadingAssessment] = useState(!location.state?.assessment);
   const [startedAt, setStartedAt] = useState(() => location.state?.startedAt || Date.now());
+  const [quizStarted, setQuizStarted] = useState(() => Boolean(location.state?.quizStarted));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
 
@@ -47,16 +48,19 @@ const QuizPage = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [error, setError] = useState('');
+  const evaluatingRef = useRef(false);
+  const pendingFinish = useRef(false);
+  const completionRequested = useRef(false);
 
   const [timeSeconds, setTimeSeconds] = useState(() => {
     const total = location.state?.assessment?.numberOfQuestions || 10;
     return Math.max(90, total * 30);
   });
-  const [timerActive, setTimerActive] = useState(true);
+  const [timerActive, setTimerActive] = useState(() => Boolean(location.state?.quizStarted));
 
   const assessmentQuestions = assessment?.questions || [];
   const questionCount = assessmentQuestions.length;
-  const isInstantFeedback = assessment?.feedbackMode !== 'After Completion';
+  const isInstantFeedback = assessment?.feedbackMode === 'Instant';
 
   const currentQuestion = assessmentQuestions[currentIndex];
   const currentEvaluation = evaluations[currentIndex];
@@ -104,7 +108,10 @@ const QuizPage = () => {
 
   const submitAnswer = async (optionIndex) => {
     if (evaluating || isAnswered || !assessment) return;
-    const optionText = String(currentQuestion.options[optionIndex]).trim();
+    const optionText = optionIndex === null
+      ? ''
+      : String(currentQuestion.options[optionIndex]).trim();
+    evaluatingRef.current = true;
     setEvaluating(true);
     setError('');
     try {
@@ -129,7 +136,12 @@ const QuizPage = () => {
       const msg = err?.response?.data?.message || 'Could not evaluate your answer.';
       setError(msg);
     } finally {
+      evaluatingRef.current = false;
       setEvaluating(false);
+      if (pendingFinish.current) {
+        pendingFinish.current = false;
+        handleFinish(true);
+      }
     }
   };
 
@@ -148,11 +160,17 @@ const QuizPage = () => {
     setCurrentIndex((i) => i - 1);
     const prev = evaluations[currentIndex - 1];
     setSelectedOption(typeof prev?.selectedOption === 'number' ? prev.selectedOption : null);
-    if (prev) setShowFeedback(true);
+    if (prev && isInstantFeedback) setShowFeedback(true);
   };
 
   const handleFinish = async (timedOut = false) => {
-    if (submitting || !assessment) return;
+    if (submitting || completionRequested.current || !assessment) return;
+    if (evaluatingRef.current) {
+      pendingFinish.current = true;
+      setTimerActive(false);
+      return;
+    }
+    completionRequested.current = true;
     setSubmitting(true);
     setTimerActive(false);
     try {
@@ -166,9 +184,16 @@ const QuizPage = () => {
       });
     } catch (err) {
       setError(err?.response?.data?.message || 'Could not finish your quest. Please try again.');
+      completionRequested.current = false;
       setSubmitting(false);
       setTimerActive(true);
     }
+  };
+
+  const startQuiz = () => {
+    setStartedAt(Date.now());
+    setQuizStarted(true);
+    setTimerActive(true);
   };
 
   const answeredCount = Object.keys(evaluations).length;
@@ -206,6 +231,60 @@ const QuizPage = () => {
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (!quizStarted) {
+    return (
+      <PageTransition>
+        <div className="py-10 md:py-16 min-h-[calc(100vh-4.25rem)] flex items-center justify-center">
+          <div className="container-x max-w-2xl">
+            <div className="wizard-card">
+              <div className="text-center mb-7">
+                <span className="hero-kicker mb-3 inline-flex">
+                  <Sparkles size={13} className="text-[var(--primary)]" /> Ready to Play
+                </span>
+                <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text)]">
+                  {assessment.topic}
+                </h1>
+                <p className="text-sm text-[var(--text-muted)] mt-2">
+                  Read the rules before starting your knowledge quest.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--line)] text-center">
+                  <div className="text-2xl font-extrabold text-[var(--primary)]">{questionCount}</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">Questions</div>
+                </div>
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--line)] text-center">
+                  <div className="text-2xl font-extrabold text-[var(--success)]">{questionCount}</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">Max points</div>
+                </div>
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--line)] text-center">
+                  <div className="text-2xl font-extrabold text-[var(--warning)]">{Math.max(90, questionCount * 30)}s</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">Time limit</div>
+                </div>
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--line)] text-center">
+                  <div className="text-2xl font-extrabold text-[var(--danger)]">0</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">Skipped points</div>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-xl border border-[var(--line)] bg-[var(--surface)] text-sm text-[var(--text-soft)] space-y-2.5">
+                <p><strong>Scoring:</strong> Each correct answer earns 1 point. Your maximum score is {questionCount} points.</p>
+                <p><strong>Skipping:</strong> You can skip any question, but skipped questions earn 0 points.</p>
+                <p><strong>Wrong answers:</strong> Wrong answers also earn 0 points. There is no penalty.</p>
+                <p><strong>Results:</strong> Your points, correct answers, missed questions, and skipped questions appear when the quest ends.</p>
+              </div>
+
+              <button type="button" className="btn-primary w-full mt-6" onClick={startQuiz}>
+                <Sparkles size={16} /> Start Quiz
+              </button>
+            </div>
+          </div>
+        </div>
+      </PageTransition>
     );
   }
 
@@ -257,7 +336,7 @@ const QuizPage = () => {
                 </div>
               </div>
               <div className="text-xs font-semibold text-[var(--text-muted)] whitespace-nowrap">
-                {answeredCount}/{questionCount} answered · {correctCount} correct
+                {answeredCount}/{questionCount} answered · {correctCount}/{questionCount} points
               </div>
             </div>
           </FadeIn>
@@ -304,7 +383,7 @@ const QuizPage = () => {
                     {currentQuestion?.options.map((opt, i) => {
                       const userPicked = selectedOption === i;
                       let state = '';
-                      if (isAnswered) {
+                      if (isAnswered && isInstantFeedback) {
                         const correctAns = currentQuestion.correctAnswer;
                         const optText = String(opt).trim();
                         const correctText = String(correctAns).trim();
@@ -352,20 +431,28 @@ const QuizPage = () => {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`p-4 rounded-xl border mb-4 text-sm ${
-                        currentEvaluation.isCorrect
+                        currentEvaluation.isSkipped
+                          ? 'bg-[var(--surface)] border-[var(--line)]'
+                          : currentEvaluation.isCorrect
                           ? 'bg-[var(--success-soft)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]'
                           : 'bg-[var(--danger-soft)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'
                       }`}
                     >
                       <div className="flex items-start gap-2.5">
-                        {currentEvaluation.isCorrect ? (
+                        {currentEvaluation.isSkipped ? (
+                          <Clock size={18} className="text-[var(--text-muted)] flex-shrink-0 mt-0.5" />
+                        ) : currentEvaluation.isCorrect ? (
                           <CheckCircle2 size={18} className="text-[var(--success)] flex-shrink-0 mt-0.5" />
                         ) : (
                           <XCircle size={18} className="text-[var(--danger)] flex-shrink-0 mt-0.5" />
                         )}
                         <div className="flex-1">
                           <div className="font-bold text-sm text-[var(--text)] mb-1">
-                            {currentEvaluation.isCorrect ? 'Correct!' : 'Incorrect'}
+                            {currentEvaluation.isSkipped
+                              ? 'Unanswered'
+                              : currentEvaluation.isCorrect
+                                ? 'Correct!'
+                                : 'Incorrect'}
                           </div>
                           <p className="text-[var(--text-soft)] leading-relaxed text-xs md:text-sm">
                             {currentEvaluation.feedback}
@@ -415,27 +502,37 @@ const QuizPage = () => {
                   <button
                     type="button"
                     className="btn-primary"
-                    onClick={isLast ? handleFinish : nextQuestion}
+                    onClick={isLast ? () => handleFinish(false) : nextQuestion}
                     disabled={submitting}
                   >
                     {isLast ? (submitting ? 'Finishing…' : 'Finish Quest') : 'Next Question'}
                     {!isLast && <ArrowRight size={16} />}
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => selectedOption !== null && submitAnswer(selectedOption)}
-                    disabled={selectedOption === null || evaluating}
-                  >
-                    {evaluating ? (
-                      <>
-                        <div className="spinner spinner-sm" /> Evaluating…
-                      </>
-                    ) : (
-                      'Submit Answer'
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => submitAnswer(null)}
+                      disabled={evaluating}
+                    >
+                      Skip Question
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => submitAnswer(selectedOption)}
+                      disabled={selectedOption === null || evaluating}
+                    >
+                      {evaluating ? (
+                        <>
+                          <div className="spinner spinner-sm" /> Evaluating…
+                        </>
+                      ) : (
+                        'Submit Answer'
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

@@ -103,7 +103,7 @@ Backend flow:
 - creates a JWT token
 - sends token back to the client
 
-The frontend saves the token in localStorage and keeps the user session active.
+The frontend saves the token in sessionStorage for the current browser tab. Previous sessions are invalidated when the backend restarts, so users must log in again after a project restart.
 
 ### 3. User enters quiz setup
 After login, the user goes to the quiz setup page.

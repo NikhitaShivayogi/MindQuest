@@ -47,6 +47,7 @@ const assessmentSchema = new mongoose.Schema(
         questionIndex: Number,
         userAnswer: String,
         isCorrect: Boolean,
+        isSkipped: Boolean,
         feedback: String,
       },
     ],

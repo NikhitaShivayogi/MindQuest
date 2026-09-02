@@ -21,7 +21,7 @@ const validateGenerate = [
 const validateSubmitAnswer = [
   body('assessmentId').notEmpty().withMessage('Assessment ID is required'),
   body('questionIndex').isInt({ min: 0 }).withMessage('Invalid question index'),
-  body('userAnswer').trim().notEmpty().withMessage('Answer is required'),
+  body('userAnswer').optional({ values: 'null' }).trim(),
 ];
 
 router.post('/generate', authMiddleware, validateGenerate, generateQuizForUser);

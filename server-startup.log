@@ -1,0 +1,5 @@
+🚀 MindQuest Server is running on port 5000
+📡 API Health: http://localhost:5000/api/health
+🔒 CORS origin: http://localhost:5173
+🌱 Environment: development
+MongoDB connected: localhost

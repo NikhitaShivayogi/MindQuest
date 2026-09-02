@@ -99,17 +99,26 @@ const submitAnswer = async (req, res) => {
       (a) => a.questionIndex === questionIndex
     );
 
-    const evaluation = await evaluateAnswer(
-      question.question,
-      userAnswer,
-      question.correctAnswer,
-      assessment.language
-    );
+    const isSkipped = !String(userAnswer || '').trim();
+    const evaluation = isSkipped
+      ? {
+          isCorrect: false,
+          score: 0,
+          confidence: 1,
+          feedback: 'Question skipped. No answer was submitted.',
+        }
+      : await evaluateAnswer(
+          question.question,
+          userAnswer,
+          question.correctAnswer,
+          assessment.language
+        );
 
     const answerRecord = {
       questionIndex,
-      userAnswer,
+      userAnswer: String(userAnswer || '').trim(),
       isCorrect: evaluation.isCorrect,
+      isSkipped,
       feedback: evaluation.feedback,
       confidence: evaluation.confidence || 0.5,
       score: typeof evaluation.score === 'number' ? evaluation.score : (evaluation.isCorrect ? 100 : 0),
@@ -131,6 +140,7 @@ const submitAnswer = async (req, res) => {
       message: 'Answer submitted successfully',
       evaluation: {
         isCorrect: evaluation.isCorrect,
+        isSkipped,
         feedback: evaluation.feedback,
         score: answerRecord.score,
         correctAnswer: question.correctAnswer,
@@ -160,9 +170,15 @@ const completeAssessment = async (req, res) => {
     let correctAnswers = 0;
     let partialAnswers = 0;
     let incorrectAnswers = 0;
+    let skippedAnswers = 0;
 
     assessment.answers.forEach((answer) => {
       const s = typeof answer.score === 'number' ? answer.score : (answer.isCorrect ? 100 : 0);
+      const skipped = answer.isSkipped || !String(answer.userAnswer || '').trim();
+      if (skipped) {
+        skippedAnswers++;
+        return;
+      }
       totalScore += s;
       if (s >= 90) correctAnswers++;
       else if (s >= 40) partialAnswers++;
@@ -197,6 +213,7 @@ const completeAssessment = async (req, res) => {
         correctAnswers,
         partialAnswers,
         incorrectAnswers,
+        skippedAnswers,
         totalQuestions: assessment.numberOfQuestions,
         timeTaken: assessment.timeTaken,
         answers: assessment.answers,

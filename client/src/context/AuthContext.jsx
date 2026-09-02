@@ -2,10 +2,11 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
+const AUTH_STORAGE = sessionStorage;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(AUTH_STORAGE.getItem('token'));
   const [isLoading, setIsLoading] = useState(true);
   const isAuthenticated = Boolean(token);
 
@@ -23,7 +24,7 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.user);
     } catch (error) {
       console.error('Error fetching current user:', error);
-      localStorage.removeItem('token');
+      AUTH_STORAGE.removeItem('token');
       setToken(null);
     } finally {
       setIsLoading(false);
@@ -44,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password, confirmPassword) => {
     const response = await authAPI.register(name, email, password, confirmPassword);
-    localStorage.setItem('token', response.data.token);
+    AUTH_STORAGE.setItem('token', response.data.token);
     setToken(response.data.token);
     setUser(response.data.user);
     return response.data;
@@ -52,14 +53,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await authAPI.login(email, password);
-    localStorage.setItem('token', response.data.token);
+    AUTH_STORAGE.setItem('token', response.data.token);
     setToken(response.data.token);
     setUser(response.data.user);
     return response.data;
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    AUTH_STORAGE.removeItem('token');
     setToken(null);
     setUser(null);
   };

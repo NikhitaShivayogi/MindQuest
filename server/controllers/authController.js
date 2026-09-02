@@ -1,6 +1,7 @@
 const jwt = require('jwt-simple');
 const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
+const serverStartedAt = require('../config/session');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mindquest-dev-secret-change-me';
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
@@ -33,6 +34,7 @@ const createToken = (user) => {
       userId: user._id,
       email: user.email,
       iat: now,
+      sessionStartedAt: serverStartedAt,
       exp: now + TOKEN_EXPIRY_MS,
     },
     JWT_SECRET

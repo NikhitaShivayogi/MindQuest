@@ -12,7 +12,7 @@ const genAI = GEMINI_API_KEY && GEMINI_API_KEY !== 'demo-gemini-key'
   ? new GoogleGenerativeAI(GEMINI_API_KEY)
   : null;
 
-const GEMINI_MODEL = 'gemini-3.6-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 const failWithoutFallback = (message) => {
   const error = new Error(message);
